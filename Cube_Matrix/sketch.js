@@ -16,14 +16,15 @@ function setup() {
 function draw() {
 	background(100);
 	normalMaterial();
+	let rotation = frameCount * 0.01;
 	for (x = 0; x < squares; x++) {
 		let coords = matrixes[x].rotate(0.3, x*2);
 		for (j = 0; j < coords.length; j++) {
 			translate(coords[j][0], coords[j][1], 0);
 			push();
-			rotateZ(frameCount * 0.01);
-			rotateX(frameCount * 0.01);
-			rotateY(frameCount * 0.01);
+			rotateZ(rotation);
+			rotateX(rotation);
+			rotateY(rotation);
 			box(cubeSize, cubeSize, cubeSize);
 			pop();
 			translate(-1*coords[j][0], -1*coords[j][1], 0);
