@@ -2,14 +2,13 @@ let gol;
 
 function setup() {
 	createCanvas(windowWidth, windowHeight);
-	gol = new GameOfLife(2);
+	gol = new GameOfLife(10);
 }
 
 function draw() {
-	background(0);
+	background(255);
 	gol.run();
 }
-
 
 class GameOfLife {
 	constructor(res) {
@@ -17,18 +16,19 @@ class GameOfLife {
 		this.generate();
 	}
 
+
 	run() {
 		this.update();
 	}
 
 	generate() {
-		this.present = false; //when false present is index 0, when true index is 1
-		// [y[x[false, true],[false, true],[false, true]]]
+		this.present = false;
+
 		this.board = [];
 		for (let y = 0; y < windowHeight/this.res; y++) {
 			let row = [];
 			for (let x = 0; x < windowWidth/this.res; x++) {
-				row.push([Math.floor(random(0, 1.9)), 0]);
+				row.push(new Cell(Math.floor(random(0, 1.9))));
 			}
 			this.board.push(row);
 		}
@@ -38,12 +38,32 @@ class GameOfLife {
 		for (let y = 0; y < this.board.length; y++) {
 			for (let x = 0; x < this.board[0].length; x++) {
 				this.updateCell(x, y);
-				this.display(x, y);
+				if (this.board[y][x].getState(this.present) > 0) {
+					this.display(x, y, this.board[y][x].getState(this.present));
+				}
 			}
 		}
-
-		//switch up the array spaces
 		this.present = !this.present;
+	}
+
+	updateCell(x, y) {
+		let neighbors = this.getNeighbors(x, y);
+		this.board[y][x].updateState(this.present);
+		if (this.board[y][x].getState(this.present) > 0 && 
+			this.board[y][x].getState(this.present) < 3) { //if alive
+			if (neighbors < 2) { //die of loneliness
+				this.board[y][x].kill(this.present);
+			}
+			 else if (neighbors > 3) { //die of overpop
+				this.board[y][x].kill(this.present);
+			 }
+		}
+		else if (this.board[y][x].getState(this.present) == 0 || 
+		this.board[y][x].getState(this.present) == 3) { //if dead or dying
+			if (neighbors == 3) { //if dead and 3 neighbors rebirth
+				this.board[y][x].spawn(this.present);
+			}
+		}
 	}
 
 	getNeighbors(x, y) {
@@ -52,7 +72,8 @@ class GameOfLife {
 			for (let j = -1; j < 2; j++) {
 				if ( j + y >= 0 && j + y < this.board.length && 
 					 i + x >= 0 && i + x < this.board[0].length &&
-					 (x + y) != 0 && this.board[y+j][x+i][+this.present]) { //when the board is 1, index doesnt pass array and its not the center
+					 (x + y) != 0 && this.board[y+j][x+i].getState(this.present) > 0
+					 && this.board[y+j][x+i].getState(this.present) < 3) { //when the board is 1 or 2, index doesnt pass array and its not the center
 						neighbors++;
 				}
 			}
@@ -60,28 +81,67 @@ class GameOfLife {
 		return neighbors;
 	}
 
-	updateCell(x, y) {
-		//if nothing happens, remain unchanged
-		let neighbors = this.getNeighbors(x, y);
-		this.board[y][x][+(!this.present)] = this.board[y][x][+this.present];
-
-		if (this.board[y][x][+this.present] == 1) { //if alive
-			if (neighbors < 2) { //die of loneliness
-				this.board[y][x][+(!this.present)] = 0;
-			}
-			 else if (neighbors > 3) { //die of overpop
-				this.board[y][x][+(!this.present)] = 0;
-			 }
+	display(x, y, state) {
+		let colors;
+		switch(state) {
+			case 1:
+				colors = color(0, 0, 0);
+				break;
+			case 2:
+				colors = color(0, 0, 255);
+				break;
+			case 3:
+				colors = color(255, 0, 0);
+				break;
 		}
-		else if (neighbors == 3) { //if dead and 3 neighbors rebirth
-			this.board[y][x][+(!this.present)] = 1;
-		}
+		stroke(colors);
+		fill(colors);
+		rect(x*this.res, y*this.res, this.res, this.res);
+	}
+}
+//TODO: make new class cell that manages all of its state data
+//if its previous state is dead and now its alive color red
+//if its previous state is alive and now its dead color blue
+//the automata class just manages each individual cell
 
+class Cell {
+	constructor(alive) {
+		//init cell either dead or alive
+		this.state = [+alive, +alive];
 	}
 
-	display(x, y) {
-		stroke(map(this.board[y][x][+this.present], 0, 1, 255, 0));
-		fill(map(this.board[y][x][+this.present], 0, 1, 255, 0)); //when 0 it will give 0 and 1; 255
-		rect(x*this.res, y*this.res, this.res, this.res);
+	updateState(present) {
+		if (this.state[+present] == 2) {
+			this.state[+!present] = 1;
+		}
+		if (this.state[+present] == 1 && this.state[+!present] == 2) {
+			this.state[+!present] = 1;
+		}
+		else if (this.state[+present] == 0 && this.state[+!present] == 3) {
+			this.state[+!present] = 0;
+		}
+		else if (this.state[+present] == 3) {
+			this.state[+!present] = 0;
+		}
+	}
+
+	kill(present) {
+		//death of cell
+		this.state[+!present] = 3;
+	}
+
+	spawn(present) {
+		//birth of cell
+		this.state[+!present] = 2;
+	}
+
+	setState(state, present) {
+		//0 = dead; 1 == alive; 2 == born; 3 == dying
+		this.state[+!present] = state;
+	}
+
+	getState(present) {
+		//this.updateState(+present);
+		return this.state[+present];
 	}
 }
